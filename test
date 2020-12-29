@@ -4,6 +4,8 @@ import mglearn
 import matplotlib.pyplot as plt
 import pymysql
 import os
+9
+from mpl_toolkits.mplot3d import Axes3D,axes3d
 from IPython.display import display
 from sklearn.metrics import mean_squared_error
 #网格管道
@@ -152,3 +154,34 @@ print("关键集:随机森林最好参数为: {}".format(grid.best_params_))
 print("关键集:随机森林最好分数为: {}".format(grid.best_score_))
 print("关键集:随机森林最好训练分为: {}".format(grid.score(X_train, y_train)))
 print("关键集:随机森林最好测试分为: {}".format(grid.score(X_test, y_test)))
+
+#2D绘图
+for s,label in zip(["People","Area","Rooms","daytotal"],["People","Area","Rooms","daytotal"]):
+    waste.plot(xticks=[20,40,60,70],yticks=[-20,0,20,40,60,80,100],kind="scatter",x="width",y="long",alpha=0.9, s=s ,label=label,figsize=(10,8),c="SU", cmap=plt.get_cmap("jet"), colorbar=True,)
+    plt.xlabel=("width")
+    plt.ylabel=("long")  
+plt.legend()
+plt.show()
+#下图中可以发现一些桶数高低规律：红色一般是厨余，黄色一般是其他，黄绿色一般是回收，蓝色一般是有害。
+
+#图3表示小区的楼房房间数都很均匀，西边用户群喜欢丢弃大量厨余和其他垃圾，桶数较高，东边的用户群丢弃的较少。
+
+#图1表示在小区均匀分布房间的楼房中，西边和南边用户群住户人数较多，垃圾的丢弃量也相对较多。
+
+#图2表示垃圾桶辐射区域很均匀，但桶数差异较大，垃圾分布不均匀，需要因地制宜往西边用户增加垃圾桶数量。
+
+#图4的环形表示多类垃圾相加，可以看出西边用户喜欢丢弃较多厨余和有害，东边用户喜欢丢弃其他和有害，中间和南边的用户喜欢丢弃回收和厨余。
+
+#3D绘图
+x_new = np.hstack([waste_numCUT.values, waste_numCUT.values[:, 1:] ** 2])
+figure=plt.figure()
+ax=Axes3D(figure,elev=-150,azim=-30)
+y=waste_labels.values
+mask = y == 0
+ax.scatter(x_new[mask, 0], x_new[mask, 1], x_new[mask, 2], c='b',cmap=mglearn.cm2, s=60)
+ax.scatter(x_new[~mask, 0], x_new[~mask, 1], x_new[~mask, 2], c='g', marker='o',cmap=mglearn.cm2, s=60)
+ax.set_xlabel("feature0")
+ax.set_ylabel("feature1")
+ax.set_zlabel("feature1 ** 2")
+
+
