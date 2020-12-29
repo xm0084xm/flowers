@@ -1,0 +1,154 @@
+import pandas as pd
+import numpy as np
+import mglearn
+import matplotlib.pyplot as plt
+import pymysql
+import os
+from IPython.display import display
+from sklearn.metrics import mean_squared_error
+#网格管道
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import make_pipeline
+from sklearn.pipeline import Pipeline
+#预处理:转换缩放排列分割填空
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.base import BaseEstimator, TransformerMixin
+#编码
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OrdinalEncoder
+#分类
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+#回归
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+#交叉验证
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.model_selection import LeaveOneOut  
+from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import GroupKFold
+#原数据:定义标签y,全集，关键集，带标签关键集
+waste = pd.read_csv(r"data\waste.csv")
+waste_labels=waste.Type.copy()
+waste_num=waste.drop("Type",axis=1)
+waste_numcut=waste.drop(["Type","long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
+waste_numCUT=waste.drop(["long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
+#新数据:定义标签y,全集，关键集
+waste_new = pd.read_csv(r"data\waste_new.csv")
+waste_new_labels=waste_new.Type.copy()
+waste_new_num=waste_new.drop("Type",axis=1)
+waste_new_numcut=waste_new.drop(["Type","long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
+print("垃圾分类：0有害，1厨余，2回收，3其他")
+
+#近邻分类
+X_train, X_test, y_train, y_test = train_test_split (waste_numcut, waste_labels, test_size=0.25, random_state=3)
+knn1=KNeighborsClassifier(n_neighbors=1).fit(X_train,y_train)
+print("关键集:近邻预测4个新样本分类: {}".format(knn1.predict(waste_new_numcut)))
+print("关键集:近邻分类训练分数: {}".format(knn1.score(X_train,y_train)))
+print("关键集:近邻分类测试分数: {}".format(knn1.score(X_test,y_test)))
+
+X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
+knn2=KNeighborsClassifier(n_neighbors=1).fit(X_train,y_train)
+print("全集:近邻预测4个新样本分类: {}".format(knn2.predict(waste_new_num)))
+print("全集:近邻分类训练分数: {}".format(knn2.score(X_train,y_train)))
+print("全集:近邻分类测试分数: {}".format(knn2.score(X_test,y_test)))
+
+#线性回归
+X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+linr1=LinearRegression().fit(X_train,y_train)
+print("关键集:线性回归训练分: {}".format(linr1.score(X_train,y_train)))
+print("关键集:线性回归测试分: {}".format(linr1.score(X_test,y_test)))
+
+X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
+linr2=LinearRegression().fit(X_train,y_train)
+print("全集:线性回归训练分: {}".format(linr2.score(X_train,y_train)))
+print("全集:线性回归测试分: {}".format(linr2.score(X_test,y_test)))
+
+#岭回归
+def ridgescore_waste_numcut():
+    X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    for alpha in D:
+        ridge1=Ridge(alpha=alpha).fit(X_train,y_train)
+        print("关键集:岭回归训练分:a={:<12f}   {} ".format(alpha,ridge1.score(X_train,y_train)))
+        print("关键集:岭回归测试分:a={:<12f}   {} ".format(alpha,ridge1.score(X_test,y_test)))
+sa=ridgescore_waste_numcut()
+print(sa)
+
+def ridgescore_waste_num():
+    X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
+    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    for alpha in D:
+        ridge2=Ridge(alpha=alpha).fit(X_train,y_train)
+        print("全集:岭回归训练分:a={:<12f}   {} ".format(alpha,ridge2.score(X_train,y_train)))
+        print("全集:岭回归测试分:a={:<12f}   {} ".format(alpha,ridge2.score(X_test,y_test)))
+sb=ridgescore_waste_num()
+print(sb)
+
+#lasso回归
+def lasso_waste_numcut():
+    X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    for alpha in D:
+        lasso1=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
+        print("关键集:lasso回归训练分:a={:<12f},   {} ".format(alpha,lasso1.score(X_train,y_train)))
+        print("关键集:lasso回归测试分:a={:<12f},   {} ".format(alpha,lasso1.score(X_test,y_test)))
+sc=lasso_waste_numcut()
+print(sc)
+
+def lasso_waste_num():
+    X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
+    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    for alpha in D:
+        lasso2=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
+        print("全集:lasso回归训练分:a={:<12f},   {} ".format(alpha,lasso2.score(X_train,y_train)))
+        print("全集:lasso回归测试分:a={:<12f},   {} ".format(alpha,lasso2.score(X_test,y_test)))
+sd=lasso_waste_num()
+print(sd)
+
+
+#搜索逻辑回归最佳参数
+
+X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+log=LogisticRegression().fit(X_train,y_train)
+pipe1 = Pipeline([('preprocessing', StandardScaler()), ('classifier',LogisticRegression())])
+param_grid = [{'classifier': [LogisticRegression()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
+grid = GridSearchCV(pipe1, param_grid, cv=4)
+grid.fit(X_train, y_train)
+print("关键集:逻辑回归最好参数为: {}".format(grid.best_params_))
+print("关键集:逻辑回归最好分数为: {}".format(grid.best_score_))
+print("关键集:逻辑回归最好训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:逻辑回归最好测试分为: {}".format(grid.score(X_test, y_test)))
+
+#搜索支持向量机最佳参数
+X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+svc=SVC().fit(X_train,y_train)
+pipe2 = Pipeline([('preprocessing', StandardScaler()), ('classifier',SVC())])
+param_grid = [{'classifier': [SVC()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
+grid = GridSearchCV(pipe2, param_grid, cv=4)
+grid.fit(X_train, y_train)
+print("关键集:支持向量机最好参数为: {}".format(grid.best_params_))
+print("关键集:支持向量机最好分数为: {}".format(grid.best_score_))
+print("关键集:支持向量机最好训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:支持向量机最好测试分为: {}".format(grid.score(X_test, y_test)))
+
+#搜索随机森林最佳参数
+X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
+rfc=RandomForestClassifier().fit(X_train,y_train)
+pipe3 = Pipeline([('preprocessing', StandardScaler()), ('classifier',RandomForestClassifier())])
+param_grid = [{'classifier': [RandomForestClassifier(n_estimators=100)],'preprocessing': [None], 'classifier__max_features': [1, 2, 3]}]
+grid = GridSearchCV(pipe3, param_grid, cv=4)
+grid.fit(X_train, y_train)
+print("关键集:随机森林最好参数为: {}".format(grid.best_params_))
+print("关键集:随机森林最好分数为: {}".format(grid.best_score_))
+print("关键集:随机森林最好训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:随机森林最好测试分为: {}".format(grid.score(X_test, y_test)))
