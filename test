@@ -3,7 +3,7 @@ jupyter路径目录下，waste.csv, waste_new.csv放进data/, waste.csv放进dat
 #======================================================================#
 #模块 函数 库
 #======================================================================#
-#常用
+#常规
 import pandas as pd
 import numpy as np
 import mglearn
@@ -53,7 +53,7 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import GroupKFold
 
 #======================================================================#
-#简单测试
+#常规散装测试
 #======================================================================#
 
 #原数据定义：平均桶数标签，数字标签，类名标签，二版数据集x，全集x(去数字标签)，全集（去数字标签，类标签），关键集，关键集（带数字标签）
@@ -241,8 +241,6 @@ print("全集：打乱交叉验证评估逻辑回归模型性能分数为：{}\n
 #流水线三个版本测试：特征扩展，独热编码，均值填空，预处理标准定标器转换等功能 
 #=============================================================================#
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-
 #一版，原书版本替换
 cat_encoder = OneHotEncoder()
 ordinal_encoder = OrdinalEncoder()
@@ -355,9 +353,8 @@ print("一版测试集误差分数为：{}\n".format(final_rmse))
 
 #常规方法分割数据集waste_num_x,waste_labels_Mean,
 X_train_v2,X_test_v2 = train_test_split (waste,random_state=3)
-waste_v2 = X_train_v2.drop("Day_Mean", axis=1)
 waste_labels_v2 = X_train_v2["Day_Mean"].copy()
-waste_num_v2 = waste_v2.drop("Type_Name", axis=1)
+waste_num_v2 = X_train_v2.drop("Type_Name", axis=1)
 
 #扩展更多特征
 People_ix, Area_ix, Rooms_ix, Day_Mean_x, Cubic_Metre_x, Day_Weight_x = 9, 10, 11, 12, 13, 14
@@ -378,7 +375,7 @@ class AttriAdd_v2(BaseEstimator, TransformerMixin):
         else:
             return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People]
 attr_adder_v2 = AttriAdd_v2(add_People_per_Area=False)
-waste_extra_attribs_v2 = attr_adder_v2.transform(waste_v2.values)
+waste_extra_attribs_v2 = attr_adder_v2.transform(X_train_v2.values)
 #填空预处理，构建转换数据
 num_pipeline_v2 = Pipeline([
 ('imputer', SimpleImputer(strategy="median")),
@@ -393,7 +390,7 @@ full_pipeline_v2 = ColumnTransformer([
 ("num", num_pipeline_v2, num_attribs_v2),
 ("cat", OneHotEncoder(), cat_attribs_v2),
 ])
-waste_prepared_v2 = full_pipeline_v2.fit_transform(waste_v2)
+waste_prepared_v2 = full_pipeline_v2.fit_transform(X_train_v2)
 
 ###二版训练集误差分数
 print("二版：\n")
@@ -437,7 +434,7 @@ print("\n")
 #二版测试集误差分数
 final_model_v2 = grid_search_v2.best_estimator_
 #分割测试集
-Xtest_v2 = X_test_v2.drop("Day_Mean", axis=1)
+Xtest_v2 = X_test_v2
 ytest_v2 = X_test_v2["Day_Mean"].copy()
 
 X_test_prepared_v2 = full_pipeline_v2.transform(Xtest_v2)
@@ -450,9 +447,9 @@ print("二版测试集误差分数为：{}\n".format(final_rmse_v2))
 
 #三版 去除人口，区域，房间数
 
-#常规方法分割数据集,删除桶数,人口，区域，房间数标签
+#常规方法分割数据集,删除人口，区域，房间数标签
 X_train_v3,X_test_v3 = train_test_split (waste,random_state=3)
-waste_v3 = X_train_v3.drop(["Day_Mean","People","Area","Rooms"],axis=1)
+waste_v3 = X_train_v3.drop(["People","Area","Rooms"],axis=1)
 waste_labels_v3 = X_train_v3["Day_Mean"].copy()
 waste_num_v3 = waste_v3.drop("Type_Name", axis=1)
 
@@ -515,7 +512,7 @@ print("\n")
 #三版测试集误差分数
 final_model_v3 = grid_search_v3.best_estimator_
 #分割测试集
-Xtest_v3 = X_test_v3.drop(["Day_Mean","People","Area","Rooms"],axis=1)
+Xtest_v3 = X_test_v3.drop(["People","Area","Rooms"],axis=1)
 ytest_v3 = X_test_v3["Day_Mean"].copy()
 
 X_test_prepared_v3 = full_pipeline_v3.transform(Xtest_v3)
