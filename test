@@ -1,18 +1,30 @@
+jupyter路径目录下，waste.csv, waste_new.csv放进data/, waste.csv放进datasets/data/ 即可运行，py3.8.5
+
+#======================================================================#
+#模块 函数 库
+#======================================================================#
+#常用
 import pandas as pd
 import numpy as np
 import mglearn
-import matplotlib.pyplot as plt
 import pymysql
 import os
-9
-from mpl_toolkits.mplot3d import Axes3D,axes3d
-from IPython.display import display
+import tarfile
+import urllib
+from scipy import stats
 from sklearn.metrics import mean_squared_error
+#绘图打印
+from IPython.display import display
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D,axes3d
+#其他
+from sklearn.base import BaseEstimator, TransformerMixin
 #网格管道
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.pipeline import Pipeline
-#预处理:转换缩放排列分割填空
+#预处理分割填空柱转换
+from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
@@ -29,6 +41,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 #回归
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
@@ -38,31 +51,46 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import LeaveOneOut  
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import GroupKFold
-#原数据:定义标签y,全集，关键集，带标签关键集
+
+#======================================================================#
+#简单测试
+#======================================================================#
+
+#原数据定义：平均桶数标签，数字标签，类名标签，二版数据集x，全集x(去数字标签)，全集（去数字标签，类标签），关键集，关键集（带数字标签）
 waste = pd.read_csv(r"data\waste.csv")
-waste_labels=waste.Type.copy()
-waste_num=waste.drop("Type",axis=1)
-waste_numcut=waste.drop(["Type","long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
-waste_numCUT=waste.drop(["long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
-#新数据:定义标签y,全集，关键集
+waste_labels_Mean=waste.Day_Mean.copy()
+waste_labels=waste.Type_Num.copy()
+waste_labels_type=waste.Type_Name.copy()
+waste_num_2version=waste.drop("Day_Mean",axis=1)
+waste_num_x=waste.drop("Type_Num",axis=1)
+waste_num=waste.drop(["Type_Num","Type_Name"],axis=1)
+waste_numcut=waste.drop(["Type_Num","Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
+waste_numCUT=waste.drop(["Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
+
+#新数据定义:数字标签, 全集（去数字标签，类标签），关键集，
 waste_new = pd.read_csv(r"data\waste_new.csv")
-waste_new_labels=waste_new.Type.copy()
-waste_new_num=waste_new.drop("Type",axis=1)
-waste_new_numcut=waste_new.drop(["Type","long","width","People","Area","Rooms","daytotal","daymean"],axis=1)
-print("垃圾分类：0有害，1厨余，2回收，3其他")
+waste_new_labels=waste_new.Type_Num.copy()
+waste_new_num=waste_new.drop(["Type_Num","Type_Name"],axis=1)
+waste_new_numcut=waste_new.drop(["Type_Num","Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
+
+print("垃圾分类：0=有害，1=厨余，2=回收，3=其他:\n")
+waste_rela=waste.corr()
+print("跟每天平均垃圾重量相关性最高的因素是:\n{}".format(waste_rela["Day_Weight"].sort_values(ascending=False)))
+print("前九个值比较相近，关联性最高的是平均每天桶数，立方米体积,七天这三类特征\n")
 
 #近邻分类
 X_train, X_test, y_train, y_test = train_test_split (waste_numcut, waste_labels, test_size=0.25, random_state=3)
 knn1=KNeighborsClassifier(n_neighbors=1).fit(X_train,y_train)
-print("关键集:近邻预测4个新样本分类: {}".format(knn1.predict(waste_new_numcut)))
+print("关键集:近邻分类对新数据的预测分类为: {}".format(knn1.predict(waste_new_numcut)))
 print("关键集:近邻分类训练分数: {}".format(knn1.score(X_train,y_train)))
 print("关键集:近邻分类测试分数: {}".format(knn1.score(X_test,y_test)))
 
 X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
 knn2=KNeighborsClassifier(n_neighbors=1).fit(X_train,y_train)
-print("全集:近邻预测4个新样本分类: {}".format(knn2.predict(waste_new_num)))
+print("全集:近邻分类对新数据的预测分类为: {}".format(knn2.predict(waste_new_num)))
 print("全集:近邻分类训练分数: {}".format(knn2.score(X_train,y_train)))
-print("全集:近邻分类测试分数: {}".format(knn2.score(X_test,y_test)))
+print("全集:近邻分类测试分数: {}\n".format(knn2.score(X_test,y_test)))
+print("从上述标签结果可知，由于原样本数和新样本数不够多，预测标签结果很差，只有有害和其他可以区分，厨余和回收则预测错误\n")
 
 #线性回归
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
@@ -73,7 +101,7 @@ print("关键集:线性回归测试分: {}".format(linr1.score(X_test,y_test)))
 X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
 linr2=LinearRegression().fit(X_train,y_train)
 print("全集:线性回归训练分: {}".format(linr2.score(X_train,y_train)))
-print("全集:线性回归测试分: {}".format(linr2.score(X_test,y_test)))
+print("全集:线性回归测试分: {}\n".format(linr2.score(X_test,y_test)))
 
 #岭回归
 def ridgescore_waste_numcut():
@@ -102,8 +130,8 @@ def lasso_waste_numcut():
     D=[0.0001,0.001,0.01,0.1,1,10,100]
     for alpha in D:
         lasso1=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
-        print("关键集:lasso回归训练分:a={:<12f},   {} ".format(alpha,lasso1.score(X_train,y_train)))
-        print("关键集:lasso回归测试分:a={:<12f},   {} ".format(alpha,lasso1.score(X_test,y_test)))
+        print("关键集:lasso回归训练分:a={:<12f}   {} ".format(alpha,lasso1.score(X_train,y_train)))
+        print("关键集:lasso回归测试分:a={:<12f}   {} ".format(alpha,lasso1.score(X_test,y_test)))
 sc=lasso_waste_numcut()
 print(sc)
 
@@ -112,67 +140,60 @@ def lasso_waste_num():
     D=[0.0001,0.001,0.01,0.1,1,10,100]
     for alpha in D:
         lasso2=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
-        print("全集:lasso回归训练分:a={:<12f},   {} ".format(alpha,lasso2.score(X_train,y_train)))
-        print("全集:lasso回归测试分:a={:<12f},   {} ".format(alpha,lasso2.score(X_test,y_test)))
+        print("全集:lasso回归训练分:a={:<12f}   {} ".format(alpha,lasso2.score(X_train,y_train)))
+        print("全集:lasso回归测试分:a={:<12f}   {} ".format(alpha,lasso2.score(X_test,y_test)))
 sd=lasso_waste_num()
 print(sd)
 
 
 #搜索逻辑回归最佳参数
-
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-log=LogisticRegression().fit(X_train,y_train)
+log1=LogisticRegression().fit(X_train,y_train)
 pipe1 = Pipeline([('preprocessing', StandardScaler()), ('classifier',LogisticRegression())])
 param_grid = [{'classifier': [LogisticRegression()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
-grid = GridSearchCV(pipe1, param_grid, cv=4)
-grid.fit(X_train, y_train)
+grid = GridSearchCV(pipe1, param_grid, cv=4).fit(X_train, y_train)
 print("关键集:逻辑回归最好参数为: {}".format(grid.best_params_))
 print("关键集:逻辑回归最好分数为: {}".format(grid.best_score_))
-print("关键集:逻辑回归最好训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:逻辑回归最好测试分为: {}".format(grid.score(X_test, y_test)))
+print("关键集:逻辑回归训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:逻辑回归测试分为: {}".format(grid.score(X_test, y_test)))
+log2=LogisticRegression(C=1).fit(X_train,y_train)
+print("关键集:逻辑回归选参后对新数据预测概率为:\n{}".format(log2.predict_proba(waste_new_numcut)))
+print("关键集:逻辑回归选参后对原数据得分为: {}\n".format(log2.score(X_test, y_test)))
 
 #搜索支持向量机最佳参数
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-svc=SVC().fit(X_train,y_train)
+svc1=SVC().fit(X_train,y_train)
 pipe2 = Pipeline([('preprocessing', StandardScaler()), ('classifier',SVC())])
 param_grid = [{'classifier': [SVC()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
-grid = GridSearchCV(pipe2, param_grid, cv=4)
-grid.fit(X_train, y_train)
+grid = GridSearchCV(pipe2, param_grid, cv=4).fit(X_train, y_train)
 print("关键集:支持向量机最好参数为: {}".format(grid.best_params_))
 print("关键集:支持向量机最好分数为: {}".format(grid.best_score_))
-print("关键集:支持向量机最好训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:支持向量机最好测试分为: {}".format(grid.score(X_test, y_test)))
+print("关键集:支持向量机训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:支持向量机测试分为: {}".format(grid.score(X_test, y_test)))
+svc2=SVC(C=10,probability=True).fit(X_train,y_train)
+print("关键集:支持向量机选参后对新数据预测概率为:\n{}".format(svc2.predict_proba(waste_new_numcut)))
+print("关键集:支持向量机选参后对原数据得分为: {}\n".format(svc2.score(X_test, y_test)))
 
 #搜索随机森林最佳参数
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-rfc=RandomForestClassifier().fit(X_train,y_train)
+rfc1=RandomForestClassifier().fit(X_train,y_train)
 pipe3 = Pipeline([('preprocessing', StandardScaler()), ('classifier',RandomForestClassifier())])
 param_grid = [{'classifier': [RandomForestClassifier(n_estimators=100)],'preprocessing': [None], 'classifier__max_features': [1, 2, 3]}]
-grid = GridSearchCV(pipe3, param_grid, cv=4)
-grid.fit(X_train, y_train)
+grid = GridSearchCV(pipe3, param_grid, cv=4).fit(X_train, y_train)
 print("关键集:随机森林最好参数为: {}".format(grid.best_params_))
 print("关键集:随机森林最好分数为: {}".format(grid.best_score_))
-print("关键集:随机森林最好训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:随机森林最好测试分为: {}".format(grid.score(X_test, y_test)))
+print("关键集:随机森林训练分为: {}".format(grid.score(X_train, y_train)))
+print("关键集:随机森林测试分为: {}".format(grid.score(X_test, y_test)))
+rfc2=RandomForestClassifier(n_estimators=100,max_features=1).fit(X_train,y_train)
+print("关键集:随机森林选参后对新数据预测概率为:\n{}".format(grid.predict_proba(waste_new_numcut)))
+print("关键集:随机森林选参后对原数据得分为: {}\n".format(grid.score(X_test, y_test)))
 
-#2D绘图
-for s,label in zip(["People","Area","Rooms","daytotal"],["People","Area","Rooms","daytotal"]):
-    waste.plot(xticks=[20,40,60,70],yticks=[-20,0,20,40,60,80,100],kind="scatter",x="width",y="long",alpha=0.9, s=s ,label=label,figsize=(10,8),c="SU", cmap=plt.get_cmap("jet"), colorbar=True,)
-    plt.xlabel=("width")
-    plt.ylabel=("long")  
-plt.legend()
-plt.show()
-#下图中可以发现一些桶数高低规律：红色一般是厨余，黄色一般是其他，黄绿色一般是回收，蓝色一般是有害。
+#=============================================================================#
+#简易3D，2D图像绘制和垃圾分类情况分析
+#=============================================================================#
 
-#图3表示小区的楼房房间数都很均匀，西边用户群喜欢丢弃大量厨余和其他垃圾，桶数较高，东边的用户群丢弃的较少。
-
-#图1表示在小区均匀分布房间的楼房中，西边和南边用户群住户人数较多，垃圾的丢弃量也相对较多。
-
-#图2表示垃圾桶辐射区域很均匀，但桶数差异较大，垃圾分布不均匀，需要因地制宜往西边用户增加垃圾桶数量。
-
-#图4的环形表示多类垃圾相加，可以看出西边用户喜欢丢弃较多厨余和有害，东边用户喜欢丢弃其他和有害，中间和南边的用户喜欢丢弃回收和厨余。
-
-#3D绘图
+#绘制3D图像
+print("四类垃圾的空间分布情况：")
 x_new = np.hstack([waste_numCUT.values, waste_numCUT.values[:, 1:] ** 2])
 figure=plt.figure()
 ax=Axes3D(figure,elev=-150,azim=-30)
@@ -184,4 +205,321 @@ ax.set_xlabel("feature0")
 ax.set_ylabel("feature1")
 ax.set_zlabel("feature1 ** 2")
 
+#2D分类图像
+for s,label in zip(["People","Area","Rooms","Day_Weight","Dynamic_Density"],
+                   ["People","Area","Rooms","Day_Weight","Dynamic_Density"]):
+    waste.plot(xticks=[20,40,60,70],yticks=[-20,0,20,40,60,80,100],kind="scatter",x="width",y="long",alpha=0.9, s=s ,label=label,figsize=(10,8),c="SU", cmap=plt.get_cmap("jet"), colorbar=True,)
+    plt.xlabel=("width")
+    plt.ylabel=("long")  
+plt.legend()
+plt.show()
 
+print("基于人口,辐射面积,房间数,平均每天重量，密度来对应每天垃圾桶数的视图，点的大小表示特征数值大小，颜色深浅表示垃圾的桶数多少\n")
+
+print("五张图中可以发现一些桶数高低规律：红色一般是其他，黄色一般是厨余，黄绿色一般是回收，蓝色一般是有害。中间和东北边垃圾桶有空闲，东边南边西边垃圾桶数量不够。\n")
+
+print("一 人口有关：表示小区楼房房间数很均匀，西边南边东边用户群喜欢丢弃厨余和其他垃圾，位置处于超市和菜市附近，东北边的用户群丢弃的较少。\n")
+
+print("二 辐射面积有关：表示在小区均匀分布房间的楼房中，西边和南边用户群住户人数较多，垃圾的丢弃量也相对较多。\n")
+
+print("三 房间数有关：表示垃圾桶辐射区域很均匀，但桶数差异较大，垃圾分布不均匀，需要西边用户增加垃圾桶数量。\n")
+
+print("四 平均每天重量有关：环形表示多类垃圾相加，西边用户喜欢丢弃较多其他和有害，东边用户喜欢丢弃其他和回收，中间和南边的用户喜欢丢弃回收和厨余，2个蓝圈表示东边和西边用户丢弃最多有害垃圾。\n")
+
+print("五 密度有关：环形表示多类密度相加，圈的大小一般可以区分金属和非金属有害的量。\n")
+
+#交叉验证及其分离器:标准，K折分层，打乱，分组，留一法
+print("全集：标准交叉验证评估逻辑回归模型分数为：{}".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels)))
+print("全集：K折分层交叉验证评估逻辑回归模型性能分数为：{}".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv=KFold(n_splits=5))))
+print("全集：打乱交叉验证评估逻辑回归模型性能分数为：{}\n".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv= ShuffleSplit(test_size=.5, train_size=.5, n_splits=10))))
+#groups = [0,0,1,1,1,1,1,1,1,2,2,2,3,4,5,?,?,?]
+#print(cross_val_score(LogisticRegression(max_iter=20000), groups,waste_num,waste_labels,cv=GroupKFold(n_splits=3))
+#print(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv=LeaveOneOut()))
+
+
+#=============================================================================#
+#流水线三个版本测试：特征扩展，独热编码，均值填空，预处理标准定标器转换等功能 
+#=============================================================================#
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+#一版，原书版本替换
+cat_encoder = OneHotEncoder()
+ordinal_encoder = OrdinalEncoder()
+#读取文件路径
+waste_PATH = os.path.join("datasets", "waste")
+def load_waste_data(waste_path=waste_PATH):
+    csv_path = os.path.join(waste_path, "waste.csv")
+    return pd.read_csv(csv_path)
+wasteq=load_waste_data()
+#洗牌法分割数据集
+wasteq["mean_cat"] = pd.cut(wasteq["Day_Weight"],bins=[0., 1.5, 3.0, 4.5, 6., np.inf],labels=[1, 2, 3, 4, 5])                          
+spli = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+for train_index, test_index in spli.split(wasteq,wasteq["mean_cat"]):
+    strat_train_set = wasteq.loc[train_index]
+    strat_test_set = wasteq.loc[test_index]
+#从训练集中删除桶数标签，再将桶数作为标签，删除非数字标签作为纯数据集
+waste_v1 = strat_train_set.drop("Day_Mean", axis=1)
+waste_labels_v1 = strat_train_set["Day_Mean"].copy()
+waste_num_v1 = waste_v1.drop("Type_Name", axis=1)
+
+
+#扩展特征集
+People_ix, Area_ix, Rooms_ix = 9, 10, 11
+class AttriAdder_v1(BaseEstimator, TransformerMixin):
+    def __init__(self, add_People_per_Area = True):
+        self.add_People_per_Area = add_People_per_Area
+    def fit(self, X, y=None):
+        return self 
+    def transform(self, X, y=None):
+        People_per_Rooms = X[:, People_ix] / X[:, Rooms_ix]
+        
+        if self.add_People_per_Area:
+            People_per_Area = X[:, People_ix] / X[:, Area_ix]
+            return np.c_[X, People_per_Rooms, People_per_Area]
+        else:
+            return np.c_[X, People_per_Rooms, ]
+attr_adder_v1 = AttriAdder_v1(add_People_per_Area=False)
+waste_extra_attribs = attr_adder_v1.transform(waste_v1.values)
+#填空预处理，构建转换数据
+num_pipeline_v1 = Pipeline([
+('imputer', SimpleImputer(strategy="median")),
+('attribs_adder', AttriAdder_v1()),
+('MinMax_scaler', MinMaxScaler()),
+])
+waste_num_tr = num_pipeline_v1.fit_transform(waste_num_v1)
+
+#编码字符串
+num_attribs_v1 = list(waste_num_v1)
+cat_attribs_v1 = ["Type_Name"]
+full_pipeline_v1 = ColumnTransformer([
+("num", num_pipeline_v1, num_attribs_v1),
+("cat", OneHotEncoder(), cat_attribs_v1),
+])
+waste_prepared_v1 = full_pipeline_v1.fit_transform(waste_v1)
+
+###一版训练集误差分数
+print("一版：\n")
+def display_scores_v1(scores):
+    print("Scores:", scores)
+    print("Mean:", scores.mean())
+    print("Standard deviation:", scores.std())
+    
+lin_reg_v1=LinearRegression().fit(waste_prepared_v1, waste_labels_v1)
+lin_scores_v1 = cross_val_score(lin_reg_v1, waste_prepared_v1, waste_labels_v1,scoring="neg_mean_squared_error", cv=10)
+lin_rmse_scores_v1 = np.sqrt(-lin_scores_v1)
+print("交叉验证评估线性回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v1(lin_rmse_scores_v1)))
+
+tree_reg_v1 = DecisionTreeRegressor().fit(waste_prepared_v1, waste_labels_v1)
+tree_scores_v1 = cross_val_score(tree_reg_v1, waste_prepared_v1, waste_labels_v1,scoring="neg_mean_squared_error", cv=10)
+tree_rmse_scores_v1 = np.sqrt(-tree_scores_v1)
+print("交叉验证评估决策树模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v1(tree_rmse_scores_v1)))
+
+forest_reg_v1 = RandomForestRegressor().fit(waste_prepared_v1, waste_labels_v1)
+forestscores_v1 = cross_val_score(forest_reg_v1, waste_prepared_v1, waste_labels_v1,scoring="neg_mean_squared_error", cv=10)
+forest_rmse_scores_v1 = np.sqrt(-forestscores_v1)
+print("交叉验证评估随机森林回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v1(forest_rmse_scores_v1)))
+
+param_grid_v1 = [
+{'n_estimators': [5, 10,15,20, 25, 30], 'max_features': [2, 4, 6, 8, 10]},
+{'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},
+]
+forest_reg_v1 = RandomForestRegressor()
+grid_search_v1 = GridSearchCV(forest_reg_v1, param_grid_v1, cv=5,scoring='neg_mean_squared_error',return_train_score=True)
+grid_search_v1.fit(waste_prepared_v1, waste_labels_v1)
+print("随机森林回归最好的特征参数和估计员参数为：{}\n".format(grid_search_v1.best_params_))
+print("随机森林回归各参数组合误差分数为：\n")
+cvres_v1 = grid_search_v1.cv_results_
+for mean_score, params in zip(cvres_v1["mean_test_score"],cvres_v1["params"]):
+    print(np.sqrt(-mean_score), params)
+print("\n")
+
+#一版测试集误差分数
+final_model = grid_search_v1.best_estimator_
+#分割测试集
+X_test_a = strat_test_set.drop("Day_Mean", axis=1)
+y_test_a = strat_test_set["Day_Mean"].copy()
+
+X_test_prepared = full_pipeline_v1.transform(X_test_a)
+final_predictions = final_model.predict(X_test_prepared)
+final_mse = mean_squared_error(y_test_a, final_predictions)
+final_rmse = np.sqrt(final_mse)
+print("一版测试集误差分数为：{}\n".format(final_rmse))
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+#二版，增加更多特征和更换分割数据集方法
+
+#常规方法分割数据集waste_num_x,waste_labels_Mean,
+X_train_v2,X_test_v2 = train_test_split (waste,random_state=3)
+waste_v2 = X_train_v2.drop("Day_Mean", axis=1)
+waste_labels_v2 = X_train_v2["Day_Mean"].copy()
+waste_num_v2 = waste_v2.drop("Type_Name", axis=1)
+
+#扩展更多特征
+People_ix, Area_ix, Rooms_ix, Day_Mean_x, Cubic_Metre_x, Day_Weight_x = 9, 10, 11, 12, 13, 14
+
+class AttriAdd_v2(BaseEstimator, TransformerMixin):
+    def __init__(self, add_People_per_Area = True): 
+        self.add_People_per_Area = add_People_per_Area
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X, y=None):
+        People_per_Rooms = X[:, People_ix] / X[:, Rooms_ix]
+        Day_Mean_per_People = X[:, Day_Mean_x] / X[:, People_ix]
+        Cubic_Metre_People = X[:, Cubic_Metre_x] / X[:, People_ix]
+        Day_Weight_People = X[:, Day_Weight_x] / X[:, People_ix]
+        if self.add_People_per_Area:
+            People_per_Area = X[:, People_ix] / X[:, Area_ix]
+            return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People,People_per_Area]
+        else:
+            return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People]
+attr_adder_v2 = AttriAdd_v2(add_People_per_Area=False)
+waste_extra_attribs_v2 = attr_adder_v2.transform(waste_v2.values)
+#填空预处理，构建转换数据
+num_pipeline_v2 = Pipeline([
+('imputer', SimpleImputer(strategy="median")),
+('attribs_adder', AttriAdd_v2()),
+('std_scaler', StandardScaler()),
+])
+waste_num_tr_v2 = num_pipeline_v2.fit_transform(waste_num_v2)
+#编码字符串
+num_attribs_v2 = list(waste_num_v2)
+cat_attribs_v2 = ["Type_Name"]
+full_pipeline_v2 = ColumnTransformer([
+("num", num_pipeline_v2, num_attribs_v2),
+("cat", OneHotEncoder(), cat_attribs_v2),
+])
+waste_prepared_v2 = full_pipeline_v2.fit_transform(waste_v2)
+
+###二版训练集误差分数
+print("二版：\n")
+def display_scores_v2(scores):
+    print("Scores:", scores)
+    print("Mean:", scores.mean())
+    print("Standard deviation:", scores.std())
+    
+lin_reg_v2=LinearRegression().fit(waste_prepared_v2, waste_labels_v2)
+lin_scores_v2 = cross_val_score(lin_reg_v2, waste_prepared_v2, waste_labels_v2,scoring="neg_mean_squared_error", cv=10)
+lin_rmse_scores_v2 = np.sqrt(-lin_scores_v2)
+print("交叉验证评估线性回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v2(lin_rmse_scores_v2)))
+
+tree_reg_v2 = DecisionTreeRegressor().fit(waste_prepared_v2, waste_labels_v2)
+tree_scores_v2 = cross_val_score(tree_reg_v2, waste_prepared_v2, waste_labels_v2,scoring="neg_mean_squared_error", cv=10)
+tree_rmse_scores_v2 = np.sqrt(-tree_scores_v2)
+print("交叉验证评估决策树模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v2(tree_rmse_scores_v2)))
+
+forest_reg_v2 = RandomForestRegressor().fit(waste_prepared_v2, waste_labels_v2)
+forest_scores_v2 = cross_val_score(forest_reg_v2, waste_prepared_v2, waste_labels_v2,scoring="neg_mean_squared_error", cv=10)
+forest_rmse_scores_v2 = np.sqrt(-forest_scores_v2)
+print("交叉验证评估随机森林回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v2(forest_rmse_scores_v2)))
+
+param_grid_v2 = [
+{'n_estimators': [5, 10,15,20, 25, 30], 'max_features': [2, 4, 6, 8, 10]},
+{'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},
+]
+forest_reg_v2 = RandomForestRegressor()
+grid_search_v2 = GridSearchCV(forest_reg_v2, param_grid_v2, cv=5,scoring='neg_mean_squared_error',return_train_score=True)
+grid_search_v2.fit(waste_prepared_v2, waste_labels_v2)
+print("随机森林回归最好的特征参数和估计员参数为：{}\n".format(grid_search_v2.best_params_))
+print("随机森林回归各参数组合误差分数为：\n")
+cvres_v2 = grid_search_v2.cv_results_
+for mean_score, params in zip(cvres_v2["mean_test_score"],cvres_v2["params"]):
+    print(np.sqrt(-mean_score), params)
+print("\n")
+
+#二版测试集误差分数
+final_model_v2 = grid_search_v2.best_estimator_
+#分割测试集
+Xtest_v2 = X_test_v2.drop("Day_Mean", axis=1)
+ytest_v2 = X_test_v2["Day_Mean"].copy()
+
+X_test_prepared_v2 = full_pipeline_v2.transform(Xtest_v2)
+final_predictions_v2 = final_model_v2.predict(X_test_prepared_v2)
+final_mse_v2 = mean_squared_error(ytest_v2, final_predictions_v2)
+final_rmse_v2 = np.sqrt(final_mse_v2)
+print("二版测试集误差分数为：{}\n".format(final_rmse_v2)) 
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+#三版 去除人口，区域，房间数
+
+#常规方法分割数据集,删除桶数,人口，区域，房间数标签
+X_train_v3,X_test_v3 = train_test_split (waste,random_state=3)
+waste_v3 = X_train_v3.drop(["Day_Mean","People","Area","Rooms"],axis=1)
+waste_labels_v3 = X_train_v3["Day_Mean"].copy()
+waste_num_v3 = waste_v3.drop("Type_Name", axis=1)
+
+#取消扩展特征
+
+#填空预处理，构建转换数据
+num_pipeline_v3 = Pipeline([
+('imputer', SimpleImputer(strategy="median")),
+('std_scaler', StandardScaler()),
+])
+waste_num_tr_v3 = num_pipeline_v3.fit_transform(waste_num_v3)
+#编码字符串
+num_attribs_v3 = list(waste_num_v3)
+cat_attribs_v3 = ["Type_Name"]
+full_pipeline_v3 = ColumnTransformer([
+("num", num_pipeline_v3, num_attribs_v3),
+("cat", OneHotEncoder(), cat_attribs_v3),
+])
+waste_prepared_v3 = full_pipeline_v3.fit_transform(waste_v3)
+
+###三版训练集误差分数
+print("三版：\n")
+def display_scores_v3(scores):
+    print("Scores:", scores)
+    print("Mean:", scores.mean())
+    print("Standard deviation:", scores.std())
+    
+lin_reg_v3=LinearRegression().fit(waste_prepared_v3, waste_labels_v3)
+lin_scores_v3 = cross_val_score(lin_reg_v3, waste_prepared_v3, waste_labels_v3,scoring="neg_mean_squared_error", cv=10)
+lin_rmse_scores_v3 = np.sqrt(-lin_scores_v3)
+print("交叉验证评估线性回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v3(lin_rmse_scores_v3)))
+
+tree_reg_v3 = DecisionTreeRegressor().fit(waste_prepared_v3, waste_labels_v3)
+tree_scores_v3 = cross_val_score(tree_reg_v3, waste_prepared_v3, waste_labels_v3,scoring="neg_mean_squared_error", cv=10)
+tree_rmse_scores_v3 = np.sqrt(-tree_scores_v3)
+print("交叉验证评估决策树模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v3(tree_rmse_scores_v3)))
+
+forest_reg_v3 = RandomForestRegressor().fit(waste_prepared_v3, waste_labels_v3)
+forest_scores_v3 = cross_val_score(forest_reg_v3, waste_prepared_v3, waste_labels_v3,scoring="neg_mean_squared_error", cv=10)
+forest_rmse_scores_v3 = np.sqrt(-forest_scores_v3)
+print("交叉验证评估随机森林回归模型误差分数，误差平均，标准差为：\n")
+print("\n".format(display_scores_v3(forest_rmse_scores_v3)))
+
+param_grid_v3 = [
+{'n_estimators': [5, 10,15,20, 25, 30], 'max_features': [2, 4, 6, 8, 10]},
+{'bootstrap': [False], 'n_estimators': [3, 10], 'max_features': [2, 3, 4]},
+]
+forest_reg_v3 = RandomForestRegressor()
+grid_search_v3 = GridSearchCV(forest_reg_v3, param_grid_v3, cv=5,scoring='neg_mean_squared_error',return_train_score=True)
+grid_search_v3.fit(waste_prepared_v3, waste_labels_v3)
+print("随机森林回归最好的特征参数和估计员参数为：{}\n".format(grid_search_v3.best_params_))
+print("随机森林回归各参数组合误差分数为：\n")
+cvres_v3 = grid_search_v3.cv_results_
+for mean_score, params in zip(cvres_v3["mean_test_score"],cvres_v3["params"]):
+    print(np.sqrt(-mean_score), params)
+print("\n")
+
+#三版测试集误差分数
+final_model_v3 = grid_search_v3.best_estimator_
+#分割测试集
+Xtest_v3 = X_test_v3.drop(["Day_Mean","People","Area","Rooms"],axis=1)
+ytest_v3 = X_test_v3["Day_Mean"].copy()
+
+X_test_prepared_v3 = full_pipeline_v3.transform(Xtest_v3)
+final_predictions_v3 = final_model_v3.predict(X_test_prepared_v3)
+final_mse_v3 = mean_squared_error(ytest_v3, final_predictions_v3)
+final_rmse_v3 = np.sqrt(final_mse_v3)
+print("三版测试集误差分数为：{}\n".format(final_rmse_v3))
