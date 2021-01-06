@@ -1,4 +1,4 @@
-jupyter路径目录下，waste.csv, waste_new.csv放进data/, waste.csv放进datasets/data/ 即可运行，py3.8.5
+jupyter路径目录下，waste.csv, waste_new.csv放进data/, waste.csv放进datasets/data/   py3.8.5
 
 #======================================================================#
 #模块 函数 库
