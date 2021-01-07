@@ -53,25 +53,26 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import GroupKFold
 
 #======================================================================#
-#常规散装测试
+#常规测试
 #======================================================================#
 
-#原数据定义：平均桶数标签，数字标签，类名标签，二版数据集x，全集x(去数字标签)，全集（去数字标签，类标签），关键集，关键集（带数字标签）
+#数据定义：完整数据data，标签y，全集X，关键集X，3D地图集X
 waste = pd.read_csv(r"data\waste.csv")
-waste_labels_Mean=waste.Day_Mean.copy()
-waste_labels=waste.Type_Num.copy()
-waste_labels_type=waste.Type_Name.copy()
-waste_num_2version=waste.drop("Day_Mean",axis=1)
-waste_num_x=waste.drop("Type_Num",axis=1)
-waste_num=waste.drop(["Type_Num","Type_Name"],axis=1)
-waste_numcut=waste.drop(["Type_Num","Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
-waste_numCUT=waste.drop(["Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
 
-#新数据定义:数字标签, 全集（去数字标签，类标签），关键集，
+waste_labels=waste.Type_Num.copy()
+waste_num=waste.drop(["Type_Num","Type_Name"],axis=1)
+waste_numcut=waste.drop(["Type_Num","Type_Name","long","width"],axis=1)
+waste_numCUT=waste.drop(["Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
+#waste_labels_Mean=waste.Day_Mean.copy()
+#waste_labels_Type=waste.Type_Name.copy()
+#waste_num_x=waste.drop("Type_Num",axis=1)
+
+#新数据定义:完整数据data，标签y，全集X，关键集X，
 waste_new = pd.read_csv(r"data\waste_new.csv")
+
 waste_new_labels=waste_new.Type_Num.copy()
 waste_new_num=waste_new.drop(["Type_Num","Type_Name"],axis=1)
-waste_new_numcut=waste_new.drop(["Type_Num","Type_Name","long","width","People","Area","Rooms","Day_Weight","Day_Mean","Cubic_Metre","Dynamic_Density"],axis=1)
+waste_new_numcut=waste_new.drop(["Type_Num","Type_Name","long","width"],axis=1)
 
 print("垃圾分类：0=有害，1=厨余，2=回收，3=其他:\n")
 waste_rela=waste.corr()
@@ -90,7 +91,7 @@ knn2=KNeighborsClassifier(n_neighbors=1).fit(X_train,y_train)
 print("全集:近邻分类对新数据的预测分类为: {}".format(knn2.predict(waste_new_num)))
 print("全集:近邻分类训练分数: {}".format(knn2.score(X_train,y_train)))
 print("全集:近邻分类测试分数: {}\n".format(knn2.score(X_test,y_test)))
-print("从上述标签结果可知，由于原样本数和新样本数不够多，预测标签结果很差，只有有害和其他可以区分，厨余和回收则预测错误\n")
+print("从上述标签结果可知预测标签结果很差，原数据的虚拟地图没包含新地点虚拟地图，只有有害和其他可区分，厨余和回收则预测错误\n")
 
 #线性回归
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
@@ -145,48 +146,60 @@ def lasso_waste_num():
 sd=lasso_waste_num()
 print(sd)
 
-
-#搜索逻辑回归最佳参数
+#四个分类器搜索参数
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-log1=LogisticRegression().fit(X_train,y_train)
-pipe1 = Pipeline([('preprocessing', StandardScaler()), ('classifier',LogisticRegression())])
-param_grid = [{'classifier': [LogisticRegression()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
-grid = GridSearchCV(pipe1, param_grid, cv=4).fit(X_train, y_train)
-print("关键集:逻辑回归最好参数为: {}".format(grid.best_params_))
-print("关键集:逻辑回归最好分数为: {}".format(grid.best_score_))
-print("关键集:逻辑回归训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:逻辑回归测试分为: {}".format(grid.score(X_test, y_test)))
-log2=LogisticRegression(C=1).fit(X_train,y_train)
-print("关键集:逻辑回归选参后对新数据预测概率为:\n{}".format(log2.predict_proba(waste_new_numcut)))
-print("关键集:逻辑回归选参后对原数据得分为: {}\n".format(log2.score(X_test, y_test)))
+#Sscaler=MinMaxScaler()
+Sscaler=StandardScaler()
 
-#搜索支持向量机最佳参数
-X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-svc1=SVC().fit(X_train,y_train)
-pipe2 = Pipeline([('preprocessing', StandardScaler()), ('classifier',SVC())])
-param_grid = [{'classifier': [SVC()], 'preprocessing': [StandardScaler(), None],'classifier__C': [0.01, 0.1, 1, 10]}]
-grid = GridSearchCV(pipe2, param_grid, cv=4).fit(X_train, y_train)
-print("关键集:支持向量机最好参数为: {}".format(grid.best_params_))
-print("关键集:支持向量机最好分数为: {}".format(grid.best_score_))
-print("关键集:支持向量机训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:支持向量机测试分为: {}".format(grid.score(X_test, y_test)))
-svc2=SVC(C=10,probability=True).fit(X_train,y_train)
-print("关键集:支持向量机选参后对新数据预测概率为:\n{}".format(svc2.predict_proba(waste_new_numcut)))
-print("关键集:支持向量机选参后对原数据得分为: {}\n".format(svc2.score(X_test, y_test)))
+#逻辑回归最佳参数及分数
+log_1=LogisticRegression(max_iter=10000)
+pipe_1 = Pipeline([("Sscaler", StandardScaler()), 
+                  ("log_1",LogisticRegression())])
+param_grid_1 = {'log_1__C': [0.001, 0.01, 0.1, 1, 10, 100]}
+grid_1 = GridSearchCV(pipe_1, param_grid_1, cv=5)
+grid_1=grid_1.fit(X_train, y_train)
 
-#搜索随机森林最佳参数
-X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-rfc1=RandomForestClassifier().fit(X_train,y_train)
-pipe3 = Pipeline([('preprocessing', StandardScaler()), ('classifier',RandomForestClassifier())])
-param_grid = [{'classifier': [RandomForestClassifier(n_estimators=100)],'preprocessing': [None], 'classifier__max_features': [1, 2, 3]}]
-grid = GridSearchCV(pipe3, param_grid, cv=4).fit(X_train, y_train)
-print("关键集:随机森林最好参数为: {}".format(grid.best_params_))
-print("关键集:随机森林最好分数为: {}".format(grid.best_score_))
-print("关键集:随机森林训练分为: {}".format(grid.score(X_train, y_train)))
-print("关键集:随机森林测试分为: {}".format(grid.score(X_test, y_test)))
-rfc2=RandomForestClassifier(n_estimators=100,max_features=1).fit(X_train,y_train)
-print("关键集:随机森林选参后对新数据预测概率为:\n{}".format(grid.predict_proba(waste_new_numcut)))
-print("关键集:随机森林选参后对原数据得分为: {}\n".format(grid.score(X_test, y_test)))
+print("关键集:逻辑回归最好参数为: {}".format(grid_1.best_params_))
+print("关键集:逻辑回归最好分数为: {}".format(grid_1.best_score_))
+print("关键集:逻辑回归训练分为: {}".format(grid_1.score(X_train, y_train)))
+print("关键集:逻辑回归测试分为: {}".format(grid_1.score(X_test, y_test)))
+log_2=LogisticRegression(max_iter=10000,C=1).fit(X_train,y_train)
+print("关键集:逻辑回归选参后对新数据预测概率为:\n{}".format(log_2.predict_proba(waste_new_numcut)))
+print("关键集:逻辑回归选参后对原数据测试集分为: {}".format(log_2.score(X_test, y_test)))
+print("关键集:逻辑回归选参后对原数据训练集分为: {}\n".format(log_2.score(X_train, y_train)))
+
+#支持向量机最佳参数及分数
+svc_1=SVC()
+pipe_2 = Pipeline([("Sscaler", StandardScaler()), 
+                  ("svc_1",SVC())])
+param_grid_2 = {'svc_1__C': [0.001,0.01, 0.1, 1, 10, 100],
+               'svc_1__gamma': [0.001,0.01, 0.1, 1, 10, 100]}
+grid_2 = GridSearchCV(pipe_2, param_grid=param_grid_2, cv=5).fit(X_train, y_train)
+
+print("关键集:支持向量机最好参数为: {}".format(grid_2.best_params_))
+print("关键集:支持向量机最好分数为: {}".format(grid_2.best_score_))
+print("关键集:支持向量机训练分为: {}".format(grid_2.score(X_train, y_train)))
+print("关键集:支持向量机测试分为: {}".format(grid_2.score(X_test, y_test)))
+svc_2=SVC(C=1,gamma=0.1, probability=True).fit(X_train,y_train)
+print("关键集:支持向量机选参后对新数据预测概率为:\n{}".format(svc_2.predict_proba(waste_new_numcut)))
+print("关键集:支持向量机选参后对原数据测试集分为: {}".format(svc_2.score(X_test, y_test)))
+print("关键集:支持向量机选参后对原数据训练集分为: {}\n".format(svc_2.score(X_train, y_train)))
+
+#随机森林最佳参数
+rfc_1=RandomForestClassifier(n_estimators=100)
+pipe_3 = Pipeline([("Sscaler", StandardScaler()), 
+                  ("rfc_1",RandomForestClassifier())])
+param_grid_3 = {'rfc_1__max_features': [1, 2, 3, 4, 5]}
+               
+grid_3 = GridSearchCV(pipe_3, param_grid_3, cv=5).fit(X_train, y_train)
+print("关键集:随机森林最好参数为: {}".format(grid_3.best_params_))
+print("关键集:随机森林最好分数为: {}".format(grid_3.best_score_))
+print("关键集:随机森林训练分为: {}".format(grid_3.score(X_train, y_train)))
+print("关键集:随机森林测试分为: {}".format(grid_3.score(X_test, y_test)))
+rfc_2=RandomForestClassifier(n_estimators=100, max_features=1).fit(X_train,y_train)
+print("关键集:随机森林选参后对新数据预测概率为:\n{}".format(grid_3.predict_proba(waste_new_numcut)))
+print("关键集:随机森林选参后对原数据测试集分为: {}".format(grid_3.score(X_test, y_test)))
+print("关键集:随机森林选参后对原数据训练集分为: {}\n".format(grid_3.score(X_train, y_train)))
 
 #=============================================================================#
 #简易3D，2D图像绘制和垃圾分类情况分析
@@ -232,8 +245,8 @@ print("五 密度有关：环形表示多类密度相加，圈的大小一般可
 print("全集：标准交叉验证评估逻辑回归模型分数为：{}".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels)))
 print("全集：K折分层交叉验证评估逻辑回归模型性能分数为：{}".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv=KFold(n_splits=5))))
 print("全集：打乱交叉验证评估逻辑回归模型性能分数为：{}\n".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv= ShuffleSplit(test_size=.5, train_size=.5, n_splits=10))))
-#groups = [0,0,1,1,1,1,1,1,1,2,2,2,3,4,5,?,?,?]
-#print(cross_val_score(LogisticRegression(max_iter=20000), groups,waste_num,waste_labels,cv=GroupKFold(n_splits=3))
+#groups = [0,0,1,1,1,1,1,1,1,2,2,2,3,3,4,5]
+#print(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,groups,cv=GroupKFold(n_splits=3))
 #print(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels,cv=LeaveOneOut()))
 
 
@@ -371,7 +384,7 @@ class AttriAdd_v2(BaseEstimator, TransformerMixin):
         Day_Weight_People = X[:, Day_Weight_x] / X[:, People_ix]
         if self.add_People_per_Area:
             People_per_Area = X[:, People_ix] / X[:, Area_ix]
-            return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People,People_per_Area]
+            return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People, People_per_Area]
         else:
             return np.c_[X, People_per_Rooms, Day_Mean_per_People, Cubic_Metre_People, Day_Weight_People]
 attr_adder_v2 = AttriAdd_v2(add_People_per_Area=False)
