@@ -128,7 +128,7 @@ print(sb)
 #lasso回归
 def lasso_waste_numcut():
     X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-    D=[0.001,0.01,0.1,1,10,100]
+    D=[0.01,0.1,1,10,100]
     for alpha in D:
         lasso1=Lasso(max_iter=10000,alpha=alpha).fit(X_train,y_train)
         print("关键集:lasso回归训练分:a={:<12f}   {} ".format(alpha,lasso1.score(X_train,y_train)))
