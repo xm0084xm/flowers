@@ -107,7 +107,7 @@ print("全集:线性回归测试分: {}\n".format(linr2.score(X_test,y_test)))
 #岭回归
 def ridgescore_waste_numcut():
     X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    D=[0.001,0.01,0.1,1,10,100]
     for alpha in D:
         ridge1=Ridge(alpha=alpha).fit(X_train,y_train)
         print("关键集:岭回归训练分:a={:<12f}   {} ".format(alpha,ridge1.score(X_train,y_train)))
@@ -117,7 +117,7 @@ print(sa)
 
 def ridgescore_waste_num():
     X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
-    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    D=[0.001,0.01,0.1,1,10,100]
     for alpha in D:
         ridge2=Ridge(alpha=alpha).fit(X_train,y_train)
         print("全集:岭回归训练分:a={:<12f}   {} ".format(alpha,ridge2.score(X_train,y_train)))
@@ -128,9 +128,9 @@ print(sb)
 #lasso回归
 def lasso_waste_numcut():
     X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
-    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    D=[0.001,0.01,0.1,1,10,100]
     for alpha in D:
-        lasso1=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
+        lasso1=Lasso(max_iter=10000,alpha=alpha).fit(X_train,y_train)
         print("关键集:lasso回归训练分:a={:<12f}   {} ".format(alpha,lasso1.score(X_train,y_train)))
         print("关键集:lasso回归测试分:a={:<12f}   {} ".format(alpha,lasso1.score(X_test,y_test)))
 sc=lasso_waste_numcut()
@@ -138,15 +138,15 @@ print(sc)
 
 def lasso_waste_num():
     X_train,X_test,y_train,y_test=train_test_split(waste_num,waste_labels,test_size=0.25,random_state=3)
-    D=[0.0001,0.001,0.01,0.1,1,10,100]
+    D=[0.001,0.01,0.1,1,10,100]
     for alpha in D:
-        lasso2=Lasso(max_iter=100000,alpha=alpha).fit(X_train,y_train)
+        lasso2=Lasso(max_iter=10000,alpha=alpha).fit(X_train,y_train)
         print("全集:lasso回归训练分:a={:<12f}   {} ".format(alpha,lasso2.score(X_train,y_train)))
         print("全集:lasso回归测试分:a={:<12f}   {} ".format(alpha,lasso2.score(X_test,y_test)))
 sd=lasso_waste_num()
 print(sd)
 
-#四个分类器搜索参数
+#三个分类器搜索参数
 X_train,X_test,y_train,y_test=train_test_split(waste_numcut,waste_labels,test_size=0.25,random_state=3)
 #Sscaler=MinMaxScaler()
 Sscaler=StandardScaler()
@@ -229,17 +229,18 @@ plt.show()
 
 print("基于人口,辐射面积,房间数,平均每天重量，密度来对应每天垃圾桶数的视图，点的大小表示特征数值大小，颜色深浅表示垃圾的桶数多少\n")
 
-print("五张图中可以发现一些桶数高低规律：红色一般是其他，黄色一般是厨余，黄绿色一般是回收，蓝色一般是有害。中间和东北边垃圾桶有空闲，东边南边西边垃圾桶数量不够。\n")
+print("五张图中可以发现一些桶数高低规律：红色一般是其他，黄色一般是厨余，黄绿色一般是回收，蓝色一般是有害。\n")
 
-print("一 人口有关：表示小区楼房房间数很均匀，西边南边东边用户群喜欢丢弃厨余和其他垃圾，位置处于超市和菜市附近，东北边的用户群丢弃的较少。\n")
+print("一 人口有关：表示小区东边人口较少西边人口较多，西边于超市和菜市附近桶数较高，东北边的用户丢弃的较少。\n")
 
-print("二 辐射面积有关：表示在小区均匀分布房间的楼房中，西边和南边用户群住户人数较多，垃圾的丢弃量也相对较多。\n")
+print("二 辐射面积有关：表示垃圾桶辐射西边范围较大，垃圾的丢弃量也相对较多。\n")
 
-print("三 房间数有关：表示垃圾桶辐射区域很均匀，但桶数差异较大，垃圾分布不均匀，需要西边用户增加垃圾桶数量。\n")
+print("三 房间数有关：表示每个区域房间数相近，西边桶数较高。\n")
 
-print("四 平均每天重量有关：环形表示多类垃圾相加，西边用户喜欢丢弃较多其他和有害，东边用户喜欢丢弃其他和回收，中间和南边的用户喜欢丢弃回收和厨余，2个蓝圈表示东边和西边用户丢弃最多有害垃圾。\n")
+print("四 平均每天重量有关：西边用户丢弃较多厨余，其他和有害，东边用户丢弃较多其他和回收，中间用户丢弃回收和厨余，2个蓝圈表示西边用户丢弃最重的有害垃圾。\n")
 
-print("五 密度有关：环形表示多类密度相加，圈的大小一般可以区分金属和非金属有害的量。\n")
+print("五 密度有关：整体密度误差不大，东边内圈黄色较大说明厨余和其他密度较大，厨余挤压密度比较固定，可以看得出是回收密度大金属类多。\n")
+print("   西边中环浅蓝圈宽度较大，较宽对应2桶范围，说明有害和回收以较低相加桶数就获得密度较大的程度，距离高桶数中密度的厨余不远，一般是有害或回收的金属,玻璃瓶量大。\n")
 
 #交叉验证及其分离器:标准，K折分层，打乱，分组，留一法
 print("全集：标准交叉验证评估逻辑回归模型分数为：{}".format(cross_val_score(LogisticRegression(max_iter=20000),waste_num,waste_labels)))
